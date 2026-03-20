@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "478320382979",
+    "project_id": "cakesecurity-d9790",
+    "storage_bucket": "cakesecurity-d9790.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:478320382979:android:dc3387b0a053053d2aaa36",
+        "android_client_info": {
+          "package_name": "com.example.app_proprietaire"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdxlqlax4DlxzPvJu9mGerk8jC3SvZLUU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:478320382979:android:880cbd99e47097202aaa36",
+        "android_client_info": {
+          "package_name": "com.example.cake_security_project"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCdxlqlax4DlxzPvJu9mGerk8jC3SvZLUU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
