@@ -1,14 +1,58 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
+final FlutterLocalNotificationsPlugin notifications =
+    FlutterLocalNotificationsPlugin();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
   await Supabase.initialize(
     url: 'https://kepelthzggcjxkserllz.supabase.co',
     anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtlcGVsdGh6Z2djanhrc2VybGx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQwMDI2NjMsImV4cCI6MjA4OTU3ODY2M30.HyrrtynTSF9TQHGNcHvJRG8pExFo-v1Xg-YAGp3gmhk',
   );
+
+  const AndroidInitializationSettings androidSettings =
+      AndroidInitializationSettings('@mipmap/ic_launcher');
+  const InitializationSettings initSettings =
+      InitializationSettings(android: androidSettings);
+  await notifications.initialize(initSettings);
+
+  await notifications
+      .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>()
+      ?.requestNotificationsPermission();
+
   runApp(const CakeAlertApp());
+}
+
+Future<void> sendAlertNotification() async {
+  const AndroidNotificationDetails androidDetails =
+      AndroidNotificationDetails(
+    'cake_alert_channel',
+    'Cake Alert',
+    channelDescription: 'Alertes de surveillance du gâteau',
+    importance: Importance.max,
+    priority: Priority.high,
+    playSound: true,
+    enableVibration: true,
+    styleInformation: BigTextStyleInformation(
+      '⚠️ Quelqu\'un essaye de voler ton gâteau ! Consulte l\'app pour voir la photo.',
+      summaryText: 'Cake Security',
+    ),
+  );
+
+  const NotificationDetails details =
+      NotificationDetails(android: androidDetails);
+
+  await notifications.show(
+    DateTime.now().millisecondsSinceEpoch ~/ 1000,
+    '🚨 ALERTE DÉTECTION !',
+    '⚠️ Quelqu\'un essaye de voler ton gâteau !',
+    details,
+  );
 }
 
 class AppColors {
@@ -95,25 +139,19 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
     });
   }
 
-  // ════════════════════════════════════════════════════════
-  //  PARSE DATE depuis le nom du fichier
-  //  format: photo_2026-03-20-13-07-10-870485.jpg
-  // ════════════════════════════════════════════════════════
   DateTime _parseDateFromName(String name) {
     try {
-      // Retire "photo_" et ".jpg"
       final clean = name
           .replaceAll('photo_', '')
           .replaceAll('.jpg', '');
-      // clean = "2026-03-20-13-07-10-870485"
       final parts = clean.split('-');
       return DateTime(
-        int.parse(parts[0]), // année
-        int.parse(parts[1]), // mois
-        int.parse(parts[2]), // jour
-        int.parse(parts[3]), // heure
-        int.parse(parts[4]), // minute
-        int.parse(parts[5]), // seconde
+        int.parse(parts[0]),
+        int.parse(parts[1]),
+        int.parse(parts[2]),
+        int.parse(parts[3]),
+        int.parse(parts[4]),
+        int.parse(parts[5]),
       );
     } catch (_) {
       return DateTime.now();
@@ -143,9 +181,6 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
     return 'Il y a ${diff.inDays}j';
   }
 
-  // ════════════════════════════════════════════════════════
-  //  CHARGE TOUTES LES PHOTOS
-  // ════════════════════════════════════════════════════════
   Future<void> _loadPhotos() async {
     try {
       final List<FileObject> files = await supabase.storage
@@ -176,9 +211,6 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
     }
   }
 
-  // ════════════════════════════════════════════════════════
-  //  VÉRIFIE NOUVELLES PHOTOS
-  // ════════════════════════════════════════════════════════
   Future<void> _checkNewPhotos() async {
     try {
       final List<FileObject> files = await supabase.storage
@@ -207,6 +239,8 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
           _showAlert = true;
         });
 
+        await sendAlertNotification();
+
         _alertAnimController.forward(from: 0);
 
         Future.delayed(const Duration(seconds: 10), () {
@@ -226,9 +260,6 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
     super.dispose();
   }
 
-  // ════════════════════════════════════════════════════════
-  //  UI
-  // ════════════════════════════════════════════════════════
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -237,8 +268,6 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            // ── Header ──────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
               child: Row(
@@ -266,7 +295,6 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                       ),
                     ],
                   ),
-                  // Indicateur live pulsant
                   ScaleTransition(
                     scale: _pulseAnim,
                     child: Container(
@@ -308,7 +336,6 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
               ),
             ),
 
-            // ── Ligne séparatrice ──────────────────────
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
               height: 0.5,
@@ -317,7 +344,6 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
 
             const SizedBox(height: 12),
 
-            // ── Alerte ────────────────────────────────
             if (_showAlert)
               ScaleTransition(
                 scale: _alertAnim,
@@ -339,8 +365,7 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                           shape: BoxShape.circle,
                         ),
                         child: const Center(
-                          child: Text('🚨',
-                              style: TextStyle(fontSize: 22)),
+                          child: Text('🚨', style: TextStyle(fontSize: 22)),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -373,7 +398,6 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                 ),
               ),
 
-            // ── Dernière photo ─────────────────────────
             if (_latestPhoto != null)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -402,8 +426,7 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                     ),
                     const SizedBox(height: 8),
                     GestureDetector(
-                      onTap: () =>
-                          _showFullPhoto(context, _latestPhoto!),
+                      onTap: () => _showFullPhoto(context, _latestPhoto!),
                       child: Stack(
                         children: [
                           ClipRRect(
@@ -431,7 +454,6 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                               },
                             ),
                           ),
-                          // Badge date/heure sur la photo
                           Positioned(
                             bottom: 10, left: 10,
                             child: Container(
@@ -446,8 +468,7 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                                   const Icon(Icons.calendar_today,
                                       size: 11, color: AppColors.beige),
                                   const SizedBox(width: 5),
-                                  Text(
-                                    _formatDate(_latestPhoto!.date),
+                                  Text(_formatDate(_latestPhoto!.date),
                                     style: const TextStyle(
                                       color: AppColors.beige,
                                       fontSize: 11,
@@ -458,8 +479,7 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                                   const Icon(Icons.access_time,
                                       size: 11, color: AppColors.beige),
                                   const SizedBox(width: 5),
-                                  Text(
-                                    _formatTime(_latestPhoto!.date),
+                                  Text(_formatTime(_latestPhoto!.date),
                                     style: const TextStyle(
                                       color: AppColors.beige,
                                       fontSize: 11,
@@ -479,7 +499,6 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
 
             const SizedBox(height: 16),
 
-            // ── Titre historique ───────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(
@@ -493,8 +512,7 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Container(
-                        height: 0.5, color: AppColors.divider),
+                    child: Container(height: 0.5, color: AppColors.divider),
                   ),
                 ],
               ),
@@ -502,7 +520,6 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
 
             const SizedBox(height: 10),
 
-            // ── Grille historique ──────────────────────
             Expanded(
               child: _loading
                   ? const Center(
@@ -515,11 +532,10 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                       ? Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text('🎂',
-                                  style: TextStyle(fontSize: 48)),
-                              const SizedBox(height: 12),
-                              const Text(
+                            children: const [
+                              Text('🎂', style: TextStyle(fontSize: 48)),
+                              SizedBox(height: 12),
+                              Text(
                                 'Aucune détection pour l\'instant',
                                 style: TextStyle(
                                   color: AppColors.grey,
@@ -530,8 +546,7 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                           ),
                         )
                       : GridView.builder(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 20),
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
                           gridDelegate:
                               const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
@@ -543,21 +558,17 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                           itemBuilder: (context, index) {
                             final photo = _photos[index];
                             return GestureDetector(
-                              onTap: () =>
-                                  _showFullPhoto(context, photo),
+                              onTap: () => _showFullPhoto(context, photo),
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: AppColors.card,
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                      color: AppColors.divider,
-                                      width: 0.5),
+                                      color: AppColors.divider, width: 0.5),
                                 ),
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    // Image
                                     Expanded(
                                       child: ClipRRect(
                                         borderRadius:
@@ -568,10 +579,9 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                                           photo.url,
                                           width: double.infinity,
                                           fit: BoxFit.cover,
-                                          loadingBuilder: (context,
-                                              child, progress) {
-                                            if (progress == null)
-                                              return child;
+                                          loadingBuilder:
+                                              (context, child, progress) {
+                                            if (progress == null) return child;
                                             return Container(
                                               color: AppColors.surface,
                                               child: const Center(
@@ -586,7 +596,6 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                                         ),
                                       ),
                                     ),
-                                    // Date + heure
                                     Padding(
                                       padding: const EdgeInsets.fromLTRB(
                                           10, 8, 10, 10),
@@ -607,8 +616,7 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                                                 style: const TextStyle(
                                                   color: AppColors.beige,
                                                   fontSize: 11,
-                                                  fontWeight:
-                                                      FontWeight.w600,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                             ],
@@ -616,8 +624,7 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                                           const SizedBox(height: 3),
                                           Row(
                                             mainAxisAlignment:
-                                                MainAxisAlignment
-                                                    .spaceBetween,
+                                                MainAxisAlignment.spaceBetween,
                                             children: [
                                               Row(
                                                 children: [
@@ -628,8 +635,7 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                                                   ),
                                                   const SizedBox(width: 4),
                                                   Text(
-                                                    _formatTime(
-                                                        photo.date),
+                                                    _formatTime(photo.date),
                                                     style: const TextStyle(
                                                       color: AppColors.grey,
                                                       fontSize: 10,
@@ -642,8 +648,7 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
                                                 style: const TextStyle(
                                                   color: AppColors.orange,
                                                   fontSize: 9,
-                                                  fontWeight:
-                                                      FontWeight.w500,
+                                                  fontWeight: FontWeight.w500,
                                                 ),
                                               ),
                                             ],
@@ -664,7 +669,6 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
     );
   }
 
-  // ── Photo plein écran avec date ──────────────────────
   void _showFullPhoto(BuildContext context, PhotoItem photo) {
     showDialog(
       context: context,
@@ -717,10 +721,7 @@ class _AlertPageState extends State<AlertPage> with TickerProviderStateMixin {
               ),
               const SizedBox(height: 8),
               const Text('Appuie pour fermer',
-                style: TextStyle(
-                  color: AppColors.grey,
-                  fontSize: 11,
-                ),
+                style: TextStyle(color: AppColors.grey, fontSize: 11),
               ),
             ],
           ),
